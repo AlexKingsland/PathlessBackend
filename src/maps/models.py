@@ -30,6 +30,7 @@ class Map(db.Model):
     duration = db.Column(db.Interval, nullable=True)
     creator_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'))
     rating_id = db.Column(db.Integer, db.ForeignKey('ratings.id', ondelete='SET NULL'))
+    tags = db.Column(ARRAY(db.String), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     creator = db.relationship('User', backref='maps', lazy=True)
@@ -45,6 +46,7 @@ class Map(db.Model):
             "creator_id": self.creator_id,
             "created_at": self.created_at.isoformat(),
             "rating": self.rating.serialize() if self.rating else None,
+            'tags': self.tags,
             "waypoints": [waypoint.serialize() for waypoint in self.waypoints]
         }
 
@@ -58,7 +60,6 @@ class Waypoint(db.Model):
     info = db.Column(db.Text, nullable=True)
     latitude = db.Column(db.Float, nullable=False)
     longitude = db.Column(db.Float, nullable=False)
-    tags = db.Column(ARRAY(db.String), nullable=True)
     times_of_day = db.Column(JSON, nullable=True)  # JSON structure for time recommendations
     price = db.Column(db.Float, nullable=True, default=0.0)
 
@@ -70,7 +71,6 @@ class Waypoint(db.Model):
             'info': self.info,
             'latitude': self.latitude,
             'longitude': self.longitude,
-            'tags': self.tags,
             'times_of_day': self.times_of_day,
             'price': self.price
         }
