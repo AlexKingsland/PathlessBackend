@@ -62,6 +62,8 @@ class Waypoint(db.Model):
     longitude = db.Column(db.Float, nullable=False)
     times_of_day = db.Column(JSON, nullable=True)  # JSON structure for time recommendations
     price = db.Column(db.Float, nullable=True, default=0.0)
+    rating = db.Column(db.Float, nullable=True, default=0.0)
+    duration = db.Column(db.Interval, nullable=True)
 
     def serialize(self):
         return {
