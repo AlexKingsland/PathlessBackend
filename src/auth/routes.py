@@ -17,10 +17,6 @@ def register():
     role = data.get('role')
     if not email or not password or not role:
         return jsonify({"error": "Email, password, and role are required"}), 400
-    
-    # Check if role is valid
-    if role not in ['traveler', 'creator']:
-        return jsonify({"error": "Role must be 'traveler' or 'creator'"}), 400
 
     # Check if the email is already registered
     if User.query.filter_by(email=email).first():
@@ -33,7 +29,7 @@ def register():
     new_user = User(
         email=email,
         password=hashed_password,
-        role=role,
+        role='traveler', # Deprecate this, no longer needed
         name=data.get('name'),
         bio=data.get('bio')
     )
