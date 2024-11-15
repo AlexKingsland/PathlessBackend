@@ -17,7 +17,7 @@ def create_app():
     app.config.from_object(SecretsConfig)
 
     # Allow cross origin calls
-    CORS(app, support_credentials=True)
+    CORS(app)
 
     # Initialize extensions
     db.init_app(app)

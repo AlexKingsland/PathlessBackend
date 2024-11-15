@@ -47,8 +47,8 @@ def create_map_with_waypoints():
                     title=wp['title'],
                     description=wp.get('description', ''),
                     info=wp.get('info', ''),
-                    latitude=wp['lat'],
-                    longitude=wp['lon'],
+                    latitude=wp['latitude'],
+                    longitude=wp['longitude'],
                     times_of_day=wp.get('times_of_day', {}),
                     price=wp.get('price', 0.0)
                 )
@@ -145,3 +145,20 @@ def get_waypoints(map_id):
     map = Map.query.get_or_404(map_id)
     waypoints = [waypoint.serialize() for waypoint in map.waypoints]
     return jsonify(waypoints)
+
+@maps_bp.route('/<int:map_id>', methods=['GET'])
+@jwt_required()
+def get_map_with_waypoints(map_id):
+    map = Map.query.get_or_404(map_id)
+    return jsonify(map.serialize()), 200
+
+@maps_bp.route('/get_all_maps_with_waypoints', methods=['GET'])
+@jwt_required()
+def get_all_maps_with_waypoints():
+    # Query all maps from the database
+    maps = Map.query.all()
+
+    # Serialize each map along with its waypoints
+    maps_with_waypoints = [map.serialize() for map in maps]
+
+    return jsonify(maps_with_waypoints), 200
