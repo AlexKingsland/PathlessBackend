@@ -74,5 +74,6 @@ class Waypoint(db.Model):
             'latitude': self.latitude,
             'longitude': self.longitude,
             'times_of_day': self.times_of_day,
-            'price': self.price
+            'price': self.price,
+            'duration': str(self.duration) if self.duration else None
         }

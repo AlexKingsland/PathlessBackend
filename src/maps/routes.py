@@ -50,7 +50,8 @@ def create_map_with_waypoints():
                     latitude=wp['latitude'],
                     longitude=wp['longitude'],
                     times_of_day=wp.get('times_of_day', {}),
-                    price=wp.get('price', 0.0)
+                    price=wp.get('price', 0.0),
+                    duration=wp.get('duration') if wp.get('duration') else None
                 )
                 db.session.add(waypoint)
 
