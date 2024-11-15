@@ -12,11 +12,6 @@ def create_map():
     # Retrieve the current user's identity
     current_user_identity = get_jwt_identity()
     user_id = current_user_identity['id']
-    user_role = current_user_identity['role']
-    
-    # Only creators can create maps
-    if user_role != 'creator':
-        return jsonify({"error": "Only creators can create maps"}), 403
 
     data = request.get_json()
     
