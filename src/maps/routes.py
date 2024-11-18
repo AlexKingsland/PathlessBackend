@@ -3,6 +3,10 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from .models import Map, Rating, Waypoint
 from ..extensions import db, logger
 from ..users.services import get_current_user
+import random
+import json
+
+DEFAULT_MAP_LIST_SIZE = 5
 
 maps_bp = Blueprint('maps', __name__)
 
@@ -158,6 +162,33 @@ def get_map_with_waypoints(map_id):
 def get_all_maps_with_waypoints():
     # Query all maps from the database
     maps = Map.query.all()
+
+    # Serialize each map along with its waypoints
+    maps_with_waypoints = [map.serialize() for map in maps]
+
+    return jsonify(maps_with_waypoints), 200
+
+@maps_bp.route('/get_filtered_maps_with_waypoints', methods=['GET'])
+@jwt_required()
+def get_filtered_maps_with_waypoints():
+    # Query all maps from the database
+    maps = Map.query.all()
+
+    # Get the query parameters
+    max_size = int(request.args.get('max_size', DEFAULT_MAP_LIST_SIZE))
+    tags = request.args.get('tags', '[]')
+
+    # Convert tags to a list
+    try:
+        tags = json.loads(tags)
+    except ValueError:
+        tags = []
+
+    maps = [map for map in maps if all(tag in map.tags for tag in tags)]
+
+    # Only return randomized n number of maps if specified
+    if max_size < len(maps):
+        maps = random.sample(maps, max_size)
 
     # Serialize each map along with its waypoints
     maps_with_waypoints = [map.serialize() for map in maps]
