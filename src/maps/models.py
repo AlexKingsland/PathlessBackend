@@ -1,6 +1,10 @@
 from datetime import datetime
 from sqlalchemy.dialects.postgresql import JSON, ARRAY
 from ..extensions import db
+import re
+
+# Preload the regex pattern as a global variable for efficiency
+DURATION_REGEX = re.compile(r'(?:(\d+) days?, )?(\d+):(\d+):(\d+)')
 
 class Rating(db.Model):
     __tablename__ = 'ratings'
@@ -42,7 +46,7 @@ class Map(db.Model):
             "id": self.id,
             "title": self.title,
             "description": self.description,
-            "duration": str(self.duration) if self.duration else None,
+            "duration": format_duration(self.duration),
             "creator_id": self.creator_id,
             "created_at": self.created_at.isoformat(),
             "rating": self.rating.serialize() if self.rating else None,
@@ -75,5 +79,33 @@ class Waypoint(db.Model):
             'longitude': self.longitude,
             'times_of_day': self.times_of_day,
             'price': self.price,
-            'duration': str(self.duration) if self.duration else None
+            'duration': format_duration(self.duration),
         }
+    
+
+def format_duration(duration):
+    if not duration:
+        return None
+
+    # Use the preloaded regex pattern to match the duration format
+    match = DURATION_REGEX.match(str(duration))
+    if match:
+        days = match.group(1)
+        hours = match.group(2)
+        minutes = match.group(3)
+
+        # Build the formatted string
+        formatted_duration = []
+        if days and int(days) > 0:
+            formatted_duration.append(f"{days} day{'s' if int(days) > 1 else ''}")
+        
+        if int(hours) > 0:
+            formatted_duration.append(f"{hours} hour{'s' if int(hours) > 1 else ''}")
+        
+        if int(minutes) > 0:
+            formatted_duration.append(f"{minutes} minute{'s' if int(minutes) > 1 else ''}")
+
+        return ', '.join(formatted_duration)
+
+    # If the format doesn't match, return the original duration string
+    return str(duration)

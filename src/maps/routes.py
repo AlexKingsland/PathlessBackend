@@ -6,8 +6,6 @@ from ..users.services import get_current_user
 import random
 import json
 
-DEFAULT_MAP_LIST_SIZE = 5
-
 maps_bp = Blueprint('maps', __name__)
 
 @maps_bp.route('/create_with_waypoints', methods=['POST'])
@@ -175,7 +173,7 @@ def get_filtered_maps_with_waypoints():
     maps = Map.query.all()
 
     # Get the query parameters
-    max_size = int(request.args.get('max_size', DEFAULT_MAP_LIST_SIZE))
+    max_size = int(request.args.get('max_size', 0))
     tags = request.args.get('tags', '[]')
 
     # Convert tags to a list
@@ -187,7 +185,7 @@ def get_filtered_maps_with_waypoints():
     maps = [map for map in maps if all(tag in map.tags for tag in tags)]
 
     # Only return randomized n number of maps if specified
-    if max_size < len(maps):
+    if max_size != 0 and max_size < len(maps):
         maps = random.sample(maps, max_size)
 
     # Serialize each map along with its waypoints
