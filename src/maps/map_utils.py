@@ -3,7 +3,7 @@ from typing import Optional
 from werkzeug.datastructures import FileStorage
 
 ALLOWED_MIME_TYPES = {"image/jpeg", "image/png"}
-MAX_IMAGE_SIZE_MB = 1  # 1 MB limit since we're storing directly to postgres
+MAX_IMAGE_SIZE_MB = 2  # 2 MB limit since we're storing directly to postgres
 
 def validate_image(file: Optional[FileStorage]):
     """Validate image size and type."""
