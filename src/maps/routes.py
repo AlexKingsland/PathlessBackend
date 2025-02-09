@@ -3,6 +3,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from .models import Map, Rating, Waypoint
 from ..extensions import db, logger
 from ..users.services import get_current_user
+from .map_utils import validate_image
 import random
 import json
 
@@ -15,6 +16,7 @@ def create_map_with_waypoints():
     user_id = current_user_identity['id']
 
     data = request.get_json()
+    image_files = request.files
     
     try:
         # Start a transaction block
@@ -42,8 +44,12 @@ def create_map_with_waypoints():
             db.session.flush()  # Get the new_map ID before committing
 
             # Add waypoints to the new map
-            waypoints = data.get('waypoints', [])
-            for wp in waypoints:
+            for idx, wp in enumerate(waypoints):
+                image_file = image_files.get(f'image_{idx}')  # Get image for this waypoint
+                image_data, error = validate_image(image_file)
+
+                if error and error != "No file uploaded.":
+                    return jsonify({"error": f"Waypoint {wp['title']}: {error}"}),
                 waypoint = Waypoint(
                     map_id=new_map.id,
                     title=wp['title'],
@@ -53,7 +59,8 @@ def create_map_with_waypoints():
                     longitude=wp['longitude'],
                     times_of_day=wp.get('times_of_day', {}),
                     price=wp.get('price', 0.0),
-                    duration=wp.get('duration') if wp.get('duration') else None
+                    duration=wp.get('duration') if wp.get('duration') else None,
+                    image_data=image_data
                 )
                 db.session.add(waypoint)
 
@@ -108,6 +115,13 @@ def add_waypoint(map_id):
     # Ensure only the map creator can add waypoints
     if map_.creator_id != current_user.id:
         return jsonify({"error": "Only the creator of this map can add waypoints"}), 403
+    
+    # Image Handling
+    image = request.files.get('image')
+    image_data, error = validate_image(image)
+
+    if error:
+        return jsonify({"error": error}), 400
 
     waypoint = Waypoint(
         map_id=map_id,
@@ -118,7 +132,8 @@ def add_waypoint(map_id):
         longitude=data['longitude'],
         tags=data.get('tags', []),
         times_of_day=data.get('times_of_day', {}),
-        price=data.get('price', 0.0)
+        price=data.get('price', 0.0),
+        image_data=image_data
     )
     db.session.add(waypoint)
     db.session.commit()

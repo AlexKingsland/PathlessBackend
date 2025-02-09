@@ -1,6 +1,7 @@
 from datetime import datetime
 from sqlalchemy.dialects.postgresql import JSON, ARRAY
 from ..extensions import db
+import base64
 import re
 
 # Preload the regex pattern as a global variable for efficiency
@@ -35,6 +36,7 @@ class Map(db.Model):
     creator_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'))
     rating_id = db.Column(db.Integer, db.ForeignKey('ratings.id', ondelete='SET NULL'))
     tags = db.Column(ARRAY(db.String), nullable=True)
+    image_data = db.Column(db.LargeBinary, nullable=True)  # Store image as binary data
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     creator = db.relationship('User', backref='maps', lazy=True)
@@ -51,7 +53,8 @@ class Map(db.Model):
             "created_at": self.created_at.isoformat(),
             "rating": self.rating.serialize() if self.rating else None,
             'tags': self.tags,
-            "waypoints": [waypoint.serialize() for waypoint in self.waypoints]
+            "waypoints": [waypoint.serialize() for waypoint in self.waypoints],
+            'image_data': base64.b64encode(self.image_data).decode('utf-8') if self.image_data else None
         }
 
 class Waypoint(db.Model):
@@ -68,6 +71,7 @@ class Waypoint(db.Model):
     price = db.Column(db.Float, nullable=True, default=0.0)
     rating = db.Column(db.Float, nullable=True, default=0.0)
     duration = db.Column(db.Interval, nullable=True)
+    image_data = db.Column(db.LargeBinary, nullable=True)  # Store image as binary data
 
     def serialize(self):
         return {
@@ -80,6 +84,7 @@ class Waypoint(db.Model):
             'times_of_day': self.times_of_day,
             'price': self.price,
             'duration': format_duration(self.duration),
+            'image_data': base64.b64encode(self.image_data).decode('utf-8') if self.image_data else None
         }
     
 
