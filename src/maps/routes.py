@@ -15,8 +15,10 @@ def create_map_with_waypoints():
     current_user_identity = get_jwt_identity()
     user_id = current_user_identity['id']
 
-    data = request.get_json()
+    data = request.form
     image_files = request.files
+    print("Files received:", request.files.keys())
+
     
     try:
         # Start a transaction block
@@ -26,10 +28,16 @@ def create_map_with_waypoints():
             db.session.add(rating)
 
             # Get individual waypoint tags to aggregate them over the map
-            waypoints = data.get('waypoints', [])
+            waypoints = json.loads(data.get('waypoints', []))
             map_tags = []
             for wp in waypoints:
                 map_tags += wp.get('tags', [])
+
+            # Get map image if exists
+            map_image = image_files.get('map_image')
+            image_data, error = validate_image(map_image)
+            if error and error != "No file uploaded.":
+                return jsonify({"error": f"Error when retrieving map image: {error}"}),
 
             # Create a new Map object
             new_map = Map(
@@ -38,14 +46,15 @@ def create_map_with_waypoints():
                 duration=data.get('duration') if data.get('duration') else None,
                 creator_id=user_id,
                 rating=rating,
-                tags=map_tags
+                tags=map_tags,
+                image_data=image_data
             )
             db.session.add(new_map)
             db.session.flush()  # Get the new_map ID before committing
 
             # Add waypoints to the new map
             for idx, wp in enumerate(waypoints):
-                image_file = image_files.get(f'image_{idx}')  # Get image for this waypoint
+                image_file = image_files.get(f'waypoint_image_{idx}')  # Get image for this waypoint
                 image_data, error = validate_image(image_file)
 
                 if error and error != "No file uploaded.":
@@ -80,7 +89,7 @@ def create_map():
     current_user_identity = get_jwt_identity()
     user_id = current_user_identity['id']
 
-    data = request.get_json()
+    data = request.form
     
     # Create a new Rating object but don't commit it to the database yet
     rating = Rating()
@@ -108,7 +117,7 @@ def get_map(map_id):
 @maps_bp.route('/<int:map_id>/waypoints', methods=['POST'])
 @jwt_required()
 def add_waypoint(map_id):
-    data = request.get_json()
+    data = request.form
     current_user = get_current_user()
     map_ = Map.query.get_or_404(map_id)
 
