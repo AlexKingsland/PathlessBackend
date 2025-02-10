@@ -193,26 +193,41 @@ def get_all_maps_with_waypoints():
 @maps_bp.route('/get_filtered_maps_with_waypoints', methods=['GET'])
 @jwt_required()
 def get_filtered_maps_with_waypoints():
-    # Query all maps from the database
-    maps = Map.query.all()
+    # Start building the query
+    query = Map.query
 
-    # Get the query parameters
+    # Dynamically apply filters based on query parameters
+    if 'title' in request.args:
+        query = query.filter(Map.title.ilike(f"%{request.args['title']}%"))  # Case-insensitive partial match
+
+    if 'creator_id' in request.args:
+        query = query.filter(Map.creator_id == int(request.args['creator_id']))
+
+    if 'min_price' in request.args:
+        query = query.filter(Map.price >= float(request.args['min_price']))
+
+    if 'max_price' in request.args:
+        query = query.filter(Map.price <= float(request.args['max_price']))
+
+    if 'duration' in request.args:
+        query = query.filter(Map.duration == request.args['duration'])
+
+    if 'tags' in request.args:
+        try:
+            tags = json.loads(request.args.get('tags', '[]'))
+            query = query.filter(Map.tags.contains(tags))  # Assumes tags is stored as a JSON/ARRAY column
+        except ValueError:
+            pass  # Ignore invalid tags
+
+    # Fetch the query results
+    maps = query.all()
+
+    # Randomize and limit the results if max_size is specified
     max_size = int(request.args.get('max_size', 0))
-    tags = request.args.get('tags', '[]')
-
-    # Convert tags to a list
-    try:
-        tags = json.loads(tags)
-    except ValueError:
-        tags = []
-
-    maps = [map for map in maps if all(tag in map.tags for tag in tags)]
-
-    # Only return randomized n number of maps if specified
-    if max_size != 0 and max_size < len(maps):
+    if max_size > 0 and max_size < len(maps):
         maps = random.sample(maps, max_size)
 
-    # Serialize each map along with its waypoints
+    # Serialize the maps and their waypoints
     maps_with_waypoints = [map.serialize() for map in maps]
 
     return jsonify(maps_with_waypoints), 200
