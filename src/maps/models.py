@@ -37,11 +37,21 @@ class Map(db.Model):
     rating_id = db.Column(db.Integer, db.ForeignKey('ratings.id', ondelete='SET NULL'))
     tags = db.Column(ARRAY(db.String), nullable=True)
     image_data = db.Column(db.LargeBinary, nullable=True)  # Store image as binary data
+    price = db.Column(db.Float, nullable=True, default=0.0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     creator = db.relationship('User', backref='maps', lazy=True)
     rating = db.relationship('Rating', backref='map', lazy=True)
     waypoints = db.relationship('Waypoint', backref='map', lazy=True, cascade="all, delete")
+
+    def update_price_from_waypoints(self):
+        """
+        Updates the Map's price attribute to be the sum of the price attributes of all its waypoints.
+        Assumes each waypoint has a 'price' attribute.
+        """
+        self.price = sum(
+            waypoint.price for waypoint in self.waypoints if waypoint.price is not None
+        )
 
     def serialize(self):
         return {
@@ -52,6 +62,7 @@ class Map(db.Model):
             "creator_id": self.creator_id,
             "created_at": self.created_at.isoformat(),
             "rating": self.rating.serialize() if self.rating else None,
+            "price": self.price,
             'tags': self.tags,
             "waypoints": [waypoint.serialize() for waypoint in self.waypoints],
             'image_data': base64.b64encode(self.image_data).decode('utf-8') if self.image_data else None

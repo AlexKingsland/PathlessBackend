@@ -5,3 +5,7 @@ Backend for pathless landing page
 1. flask db migrate -m "Added image_data field to Map model"
 2. Check alembic migration file to check the changes are reflectiveof model updates
 3. flask db upgrade
+
+# Load venv
+1. source venv/bin/activate
+2. pip install -r requirements.txt

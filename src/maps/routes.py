@@ -1,3 +1,4 @@
+from datetime import timedelta
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from .models import Map, Rating, Waypoint
@@ -47,6 +48,7 @@ def create_map_with_waypoints():
                 creator_id=user_id,
                 rating=rating,
                 tags=map_tags,
+                price=data.get('price', 0.0),
                 image_data=image_data
             )
             db.session.add(new_map)
@@ -72,6 +74,9 @@ def create_map_with_waypoints():
                     image_data=image_data
                 )
                 db.session.add(waypoint)
+            
+            # Update the map's price based on the waypoints
+            new_map.update_price_from_waypoints()
 
         # Commit the transaction
         db.session.commit()
@@ -193,41 +198,79 @@ def get_all_maps_with_waypoints():
 @maps_bp.route('/get_filtered_maps_with_waypoints', methods=['GET'])
 @jwt_required()
 def get_filtered_maps_with_waypoints():
-    # Start building the query
-    query = Map.query
+    try:
+        # Retrieve filter values from query parameters
+        price_param = request.args.get('price')       # Expected format: "20, 80"
+        duration_param = request.args.get('duration')   # Expected format: "1, 10"
+        rating_param = request.args.get('rating')       # Expected format: "1, 5"
+        # country_param = request.args.get('country')   # TODO: Implement this in the model
+        tags_param = request.args.get('tags')           # Expected format: "tag1, tag2"
 
-    # Dynamically apply filters based on query parameters
-    if 'title' in request.args:
-        query = query.filter(Map.title.ilike(f"%{request.args['title']}%"))  # Case-insensitive partial match
+        query = Map.query
 
-    if 'creator_id' in request.args:
-        query = query.filter(Map.creator_id == int(request.args['creator_id']))
+        # Filter by price range if provided
+        if price_param:
+            try:
+                low_price, high_price = [float(x.strip()) for x in price_param.split(',')]
+                query = query.filter(Map.price >= low_price, Map.price <= high_price)
+            except ValueError:
+                pass  # Log error if needed
 
-    if 'min_price' in request.args:
-        query = query.filter(Map.price >= float(request.args['min_price']))
+        # Filter by duration range if provided
+        # Parse duration and convert to timedelta
+        if duration_param:
+            parts = [x.strip() for x in duration_param.split(',')]
+            if len(parts) == 2:
+                try:
+                    low_duration = timedelta(days=float(parts[0]))
+                    high_duration = timedelta(days=float(parts[1]))
+                    query = query.filter(Map.duration >= low_duration).filter(Map.duration <= high_duration)
+                except ValueError:
+                    pass
 
-    if 'max_price' in request.args:
-        query = query.filter(Map.price <= float(request.args['max_price']))
+        # Filter by rating range if provided TODO: Properly update ratings in the model
+        # if rating_param:
+        #     try:
+        #         parsed = low_price, high_price = [float(x.strip()) for x in rating_param.split(',')]
+        #         if parsed:
+        #             low_rating, high_rating = parsed
+        #             # Join the Rating table and filter on its 'score' column instead
+        #             query = query.join(Rating).filter(Rating.average_rating >= low_rating).filter(Rating.average_rating <= high_rating)
+        #     except ValueError:
+        #         pass
 
-    if 'duration' in request.args:
-        query = query.filter(Map.duration == request.args['duration'])
+        # Filter by country if provided -> TODO: Implement this in the model
 
-    if 'tags' in request.args:
-        try:
-            tags = json.loads(request.args.get('tags', '[]'))
-            query = query.filter(Map.tags.contains(tags))  # Assumes tags is stored as a JSON/ARRAY column
-        except ValueError:
-            pass  # Ignore invalid tags
+        # Filter by tags if provided
+        if tags_param:
+            tags_list = [tag.strip() for tag in tags_param.split(',')]
+            # Assuming Map.tags is stored as an ARRAY (or JSON) and your DB supports an "overlap" operator.
+            query = query.filter(Map.tags.overlap(tags_list))
+            # Adjust filtering if tags are stored differently
 
-    # Fetch the query results
-    maps = query.all()
+        maps = query.all()
+        return jsonify([map.serialize() for map in maps]), 200
 
-    # Randomize and limit the results if max_size is specified
-    max_size = int(request.args.get('max_size', 0))
-    if max_size > 0 and max_size < len(maps):
-        maps = random.sample(maps, max_size)
+    except Exception as e:
+        print(e)
+        return jsonify({"error": "Failed to fetch filtered maps", "details": str(e)}), 500
 
-    # Serialize the maps and their waypoints
-    maps_with_waypoints = [map.serialize() for map in maps]
 
-    return jsonify(maps_with_waypoints), 200
+
+@maps_bp.route('/get_all_tags', methods=['GET'])
+@jwt_required()
+def get_all_tags():
+    # Note: Not an efficient way to get list of valid tags, should make dedicated table for this
+    try:
+        # Query all tags from maps
+        tags_query = Map.query.with_entities(Map.tags).all()
+
+        # Flatten the list of tags and remove duplicates
+        consolidated_tags = set()
+        for tags in tags_query:
+            if tags[0]:  # Ensure tags column is not null
+                consolidated_tags.update(tags[0])  # Assume tags is stored as a list/array in JSON/ARRAY column
+
+        return jsonify(sorted(consolidated_tags)), 200  # Sort the tags alphabetically
+    except Exception as e:
+        return jsonify({"error": "Failed to retrieve tags", "details": str(e)}), 500
