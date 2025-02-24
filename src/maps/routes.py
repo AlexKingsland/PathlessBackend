@@ -208,6 +208,12 @@ def get_filtered_maps_with_waypoints():
 
         query = Map.query
 
+        if 'creator_id' in request.args:
+            try:
+                query = query.filter(Map.creator_id == int(request.args['creator_id']))
+            except ValueError:
+                pass  # Log error if needed
+
         # Filter by price range if provided
         if price_param:
             try:
