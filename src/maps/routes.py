@@ -71,12 +71,14 @@ def create_map_with_waypoints():
                     times_of_day=wp.get('times_of_day', {}),
                     price=wp.get('price', 0.0),
                     duration=wp.get('duration') if wp.get('duration') else None,
-                    image_data=image_data
+                    image_data=image_data,
+                    country=wp.get('country', None)
                 )
                 db.session.add(waypoint)
             
-            # Update the map's price based on the waypoints
+            # Update the map's price/countrie based on the waypoints
             new_map.update_price_from_waypoints()
+            new_map.update_countries_from_waypoints()
 
         # Commit the transaction
         db.session.commit()
@@ -203,8 +205,8 @@ def get_filtered_maps_with_waypoints():
         price_param = request.args.get('price')       # Expected format: "20, 80"
         duration_param = request.args.get('duration')   # Expected format: "1, 10"
         rating_param = request.args.get('rating')       # Expected format: "1, 5"
-        # country_param = request.args.get('country')   # TODO: Implement this in the model
-        tags_param = request.args.get('tags')           # Expected format: "tag1, tag2"
+        country_param = request.args.get('countries')     # Expected format: "USA", "Canada" or "" for no country
+        tags_param = request.args.get('tags')           # Expected format: "tag1, tag2" or "" for no tags
 
         query = Map.query
 
@@ -245,7 +247,11 @@ def get_filtered_maps_with_waypoints():
         #     except ValueError:
         #         pass
 
-        # Filter by country if provided -> TODO: Implement this in the model
+        # Filter by country if provided
+        if country_param:
+            countries_list = [country.strip() for country in country_param.split(',')]
+            query = query.filter(Map.countries.overlap(countries_list))
+
 
         # Filter by tags if provided
         if tags_param:

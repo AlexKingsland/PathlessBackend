@@ -39,6 +39,7 @@ class Map(db.Model):
     image_data = db.Column(db.LargeBinary, nullable=True)  # Store image as binary data
     price = db.Column(db.Float, nullable=True, default=0.0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    countries = db.Column(ARRAY(db.String(255)), nullable=True, default=[])
     
     creator = db.relationship('User', backref='maps', lazy=True)
     rating = db.relationship('Rating', backref='map', lazy=True)
@@ -53,6 +54,15 @@ class Map(db.Model):
             waypoint.price for waypoint in self.waypoints if waypoint.price is not None
         )
 
+    def update_countries_from_waypoints(self):
+        """
+        Updates the Map's countries attribute to be a list of unique country names from all its waypoints.
+        Assumes each waypoint has a 'country' attribute.
+        """
+        self.countries = list(
+            set(waypoint.country for waypoint in self.waypoints if waypoint.country is not None)
+        )
+
     def serialize(self):
         return {
             "id": self.id,
@@ -64,6 +74,7 @@ class Map(db.Model):
             "rating": self.rating.serialize() if self.rating else None,
             "price": self.price,
             'tags': self.tags,
+            'countries': self.countries,
             "waypoints": [waypoint.serialize() for waypoint in self.waypoints],
             'image_data': base64.b64encode(self.image_data).decode('utf-8') if self.image_data else None
         }
@@ -83,6 +94,7 @@ class Waypoint(db.Model):
     rating = db.Column(db.Float, nullable=True, default=0.0)
     duration = db.Column(db.Interval, nullable=True)
     image_data = db.Column(db.LargeBinary, nullable=True)  # Store image as binary data
+    country = db.Column(db.String(255), nullable=True)
 
     def serialize(self):
         return {
@@ -95,7 +107,8 @@ class Waypoint(db.Model):
             'times_of_day': self.times_of_day,
             'price': self.price,
             'duration': format_duration(self.duration),
-            'image_data': base64.b64encode(self.image_data).decode('utf-8') if self.image_data else None
+            'image_data': base64.b64encode(self.image_data).decode('utf-8') if self.image_data else None,
+            'country': self.country
         }
     
 
