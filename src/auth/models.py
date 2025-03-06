@@ -13,7 +13,9 @@ class User(db.Model):
     name = db.Column(db.String(100), nullable=True)
     bio = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    map_ids = db.Column(ARRAY(db.Integer), nullable=True, default=[])  # List of map IDs associated with the user
+    map_ids = db.Column(ARRAY(db.Integer), nullable=True, default=[])
+    image_data = db.Column(db.LargeBinary, nullable=True)
+    alias = db.Column(db.String(100), nullable=True) 
 
     def serialize(self):
         return {
