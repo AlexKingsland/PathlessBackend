@@ -1,4 +1,4 @@
-from flask import jsonify
+import base64
 from datetime import datetime
 from sqlalchemy.dialects.postgresql import ARRAY
 from ..extensions import db
@@ -24,5 +24,7 @@ class User(db.Model):
             "role": self.role,
             "name": self.name,
             "bio": self.bio,
-            "map_ids": self.map_ids
+            "map_ids": self.map_ids,
+            "image_data": base64.b64encode(self.image_data).decode('utf-8') if self.image_data else None,
+            "alias": self.alias
         }

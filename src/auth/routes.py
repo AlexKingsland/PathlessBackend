@@ -4,23 +4,35 @@ from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identi
 from datetime import timedelta
 from .models import User
 from ..extensions import db
+from ..maps.map_utils import validate_image
 
 auth_bp = Blueprint('auth', __name__)
 
 @auth_bp.route('/register', methods=['POST'])
 def register():
-    data = request.get_json()
+    data = request.form
+    image_files = request.files
     
     # Validate required fields
     email = data.get('email')
     password = data.get('password')
     role = data.get('role')
+    alias = data.get('alias')
     if not email or not password or not role:
         return jsonify({"error": "Email, password, and role are required"}), 400
 
     # Check if the email is already registered
     if User.query.filter_by(email=email).first():
         return jsonify({"error": "Email is already registered"}), 409
+    
+    # Check if the alias is already registered
+    if User.query.filter_by(alias=alias).first():
+        return jsonify({"error": "Alias is already registered"}), 409
+    
+    profile_image = image_files.get('profile_image')
+    image_data, error = validate_image(profile_image)
+    if error and error != "No file uploaded.":
+        return jsonify({"error": f"Error when retrieving map image: {error}"}),
 
     # Hash the password
     hashed_password = generate_password_hash(password, method='sha256')
@@ -32,6 +44,8 @@ def register():
         role='traveler', # Deprecate this, no longer needed
         name=data.get('name'),
         bio=data.get('bio')
+        # image_data=image_data,
+        # alias=alias
     )
     
     db.session.add(new_user)
