@@ -76,7 +76,8 @@ class Map(db.Model):
             'tags': self.tags,
             'countries': self.countries,
             "waypoints": [waypoint.serialize() for waypoint in self.waypoints],
-            'image_data': base64.b64encode(self.image_data).decode('utf-8') if self.image_data else None
+            'image_data': base64.b64encode(self.image_data).decode('utf-8') if self.image_data else None,
+            "creator": self.creator.serialize() if self.creator else None
         }
 
 class Waypoint(db.Model):

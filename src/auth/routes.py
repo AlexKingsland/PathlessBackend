@@ -91,3 +91,13 @@ def profile():
         "bio": user.bio,
         "map_ids": user.map_ids
     })
+
+@auth_bp.route('/user/<alias>', methods=['GET'])
+def get_user_profile(alias):
+    user = User.query.filter_by(alias=alias).first()
+
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    return jsonify(user.serialize()), 200
+
