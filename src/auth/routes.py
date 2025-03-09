@@ -1,3 +1,4 @@
+import base64
 from flask import Blueprint, request, jsonify
 from werkzeug.security import check_password_hash, generate_password_hash
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
@@ -5,6 +6,7 @@ from datetime import timedelta
 from .models import User
 from ..extensions import db
 from ..maps.map_utils import validate_image
+from ..maps.models import Map, format_duration
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -99,5 +101,27 @@ def get_user_profile(alias):
     if not user:
         return jsonify({"error": "User not found"}), 404
 
-    return jsonify(user.serialize()), 200
+    # Dynamically fetch all maps where the user is the creator
+    maps = Map.query.filter_by(creator_id=user.id).all()
+
+    maps_metadata = [
+        {
+            "id": map.id,
+            "title": map.title,
+            "description": map.description,
+            "duration": format_duration(map.duration),
+            "rating": map.rating.average_rating if map.rating else None,
+            "price": map.price,
+            "countries": map.countries,
+            "tags": map.tags,
+            "image_data": base64.b64encode(map.image_data).decode('utf-8') if map.image_data else None
+        }
+        for map in maps
+    ]
+
+    # Serialize user data and add maps metadata
+    user_data = user.serialize()
+    user_data["maps"] = maps_metadata  # ✅ Fetch maps dynamically
+
+    return jsonify(user_data), 200
 
