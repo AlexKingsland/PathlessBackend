@@ -89,6 +89,80 @@ def create_map_with_waypoints():
         logger.error("Error creating map and waypoints:", str(e))
         return jsonify({"error": "Failed to create map and waypoints", "details": str(e)}), 500
 
+@maps_bp.route('/<int:map_id>/update_with_waypoints', methods=['PATCH'])
+@jwt_required()
+def update_map_with_waypoints(map_id):
+    current_user_identity = get_jwt_identity()
+    user_id = current_user_identity['id']
+
+    data = request.form
+    image_files = request.files
+    print("Files received:", request.files.keys())
+
+    try:
+        # Retrieve the map
+        existing_map = Map.query.filter_by(id=map_id, creator_id=user_id).first()
+        if not existing_map:
+            return jsonify({"error": "Map not found or unauthorized"}), 404
+
+        with db.session.begin_nested():
+            # Update map fields
+            existing_map.title = data.get('title', existing_map.title)
+            existing_map.description = data.get('description', existing_map.description)
+            existing_map.duration = data.get('duration') or existing_map.duration
+            existing_map.price = float(data.get('price', existing_map.price))
+
+            # Update map image if new one provided
+            map_image = image_files.get('map_image')
+            if map_image:
+                image_data, error = validate_image(map_image)
+                if error:
+                    return jsonify({"error": f"Map image error: {error}"}), 400
+                existing_map.image_data = image_data
+
+            # Handle waypoints (optional - overwrite existing)
+            waypoints_raw = data.get('waypoints')
+            if waypoints_raw:
+                waypoints = json.loads(waypoints_raw)
+
+                # Clear existing waypoints
+                Waypoint.query.filter_by(map_id=map_id).delete()
+
+                # Add new waypoints
+                for idx, wp in enumerate(waypoints):
+                    image_file = image_files.get(f'waypoint_image_{idx}')
+                    image_data, error = validate_image(image_file)
+                    if error and error != "No file uploaded.":
+                        return jsonify({"error": f"Waypoint {wp['title']} image error: {error}"}), 400
+
+                    new_wp = Waypoint(
+                        map_id=map_id,
+                        title=wp['title'],
+                        description=wp.get('description', ''),
+                        info=wp.get('info', ''),
+                        latitude=wp['latitude'],
+                        longitude=wp['longitude'],
+                        times_of_day=wp.get('times_of_day', {}),
+                        price=wp.get('price', 0.0),
+                        duration=wp.get('duration', None),
+                        image_data=image_data,
+                        country=wp.get('country', None)
+                    )
+                    db.session.add(new_wp)
+
+                # Update map metadata based on new waypoints
+                existing_map.update_price_from_waypoints()
+                existing_map.update_countries_from_waypoints()
+
+        db.session.commit()
+        return jsonify({"message": "Map and waypoints updated successfully", "map_id": existing_map.id}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f'Error updating map {map_id}: {str(e)}')
+        return jsonify({"error": "Failed to update map and waypoints", "details": str(e)}), 500
+
+
 @maps_bp.route('/create_map', methods=['POST'])
 @jwt_required()
 def create_map():
