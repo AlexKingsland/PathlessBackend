@@ -55,6 +55,46 @@ def register():
     
     return jsonify({"message": "User registered successfully", "user_id": new_user.id}), 201
 
+@auth_bp.route('/user/<int:user_id>/update', methods=['PATCH'])
+@jwt_required()
+def update_user_profile(user_id):
+    current_user = get_jwt_identity()
+    if current_user['id'] != user_id:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    data = request.form
+    image_files = request.files
+
+    try:
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+
+        # Update alias if provided and not already taken by someone else
+        new_alias = data.get('alias')
+        if new_alias and new_alias != user.alias:
+            if User.query.filter_by(alias=new_alias).first():
+                return jsonify({"error": "Alias is already taken"}), 409
+            user.alias = new_alias
+
+        # Update name and bio
+        user.name = data.get('name', user.name)
+        user.bio = data.get('bio', user.bio)
+
+        # Update profile image if provided
+        profile_image = image_files.get('profile_image')
+        if profile_image:
+            image_data, error = validate_image(profile_image)
+            if error:
+                return jsonify({"error": f"Profile image error: {error}"}), 400
+            user.image_data = image_data
+
+        db.session.commit()
+        return jsonify({"message": "User profile updated successfully", "user": user.serialize()}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": "An error occurred while updating the profile", "details": str(e)}), 500
 
 @auth_bp.route('/login', methods=['POST'])
 def login():
