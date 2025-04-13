@@ -162,32 +162,34 @@ def update_map_with_waypoints(map_id):
         logger.error(f'Error updating map {map_id}: {str(e)}')
         return jsonify({"error": "Failed to update map and waypoints", "details": str(e)}), 500
 
-
-@maps_bp.route('/create_map', methods=['POST'])
+@maps_bp.route('/<int:map_id>/delete', methods=['DELETE'])
 @jwt_required()
-def create_map():
-    # Retrieve the current user's identity
+def delete_map(map_id):
     current_user_identity = get_jwt_identity()
     user_id = current_user_identity['id']
 
-    data = request.form
-    
-    # Create a new Rating object but don't commit it to the database yet
-    rating = Rating()
-    db.session.add(rating)
+    try:
+        map_to_delete = Map.query.filter_by(id=map_id, creator_id=user_id).first()
 
-    # Create a new Map object with the rating and creator_id set
-    new_map = Map(
-        title=data['title'],
-        description=data.get('description', ''),
-        duration=data.get('duration'),
-        creator_id=user_id,
-        rating=rating  # Assign the rating object directly
-    )
-    db.session.add(new_map)
-    db.session.commit()  # Commit both the map and the rating in one transaction
+        if not map_to_delete:
+            return jsonify({"error": "Map not found or unauthorized"}), 404
 
-    return jsonify({"message": "Map created successfully", "map_id": new_map.id}), 201
+        with db.session.begin_nested():
+            # Delete associated waypoints and rating
+            Waypoint.query.filter_by(map_id=map_id).delete()
+            if map_to_delete.rating_id:
+                Rating.query.filter_by(id=map_to_delete.rating_id).delete()
+
+            # Delete the map itself
+            db.session.delete(map_to_delete)
+
+        db.session.commit()
+        return jsonify({"message": "Map and associated waypoints deleted successfully."}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error deleting map {map_id}: {str(e)}")
+        return jsonify({"error": "Failed to delete map", "details": str(e)}), 500
 
 
 @maps_bp.route('/<int:map_id>', methods=['GET'])
