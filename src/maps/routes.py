@@ -4,7 +4,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from .models import Map, Rating, Waypoint
 from ..extensions import db, logger
 from ..users.services import get_current_user
-from .map_utils import validate_image
+from .map_utils import validate_base64_image, validate_image
 import random
 import json
 
@@ -131,7 +131,12 @@ def update_map_with_waypoints(map_id):
                 # Add new waypoints
                 for idx, wp in enumerate(waypoints):
                     image_file = image_files.get(f'waypoint_image_{idx}')
-                    image_data, error = validate_image(image_file)
+                    image_data = None
+                    error = None
+                    if image_file:
+                        image_data, error = validate_image(image_file)
+                    elif wp.get("image_data"):
+                        image_data, error = validate_base64_image(wp["image_data"])
                     if error and error != "No file uploaded.":
                         return jsonify({"error": f"Waypoint {wp['title']} image error: {error}"}), 400
 
