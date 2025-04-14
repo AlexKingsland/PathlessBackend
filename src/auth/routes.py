@@ -45,9 +45,9 @@ def register():
         password=hashed_password,
         role='traveler', # Deprecate this, no longer needed
         name=data.get('name'),
-        bio=data.get('bio')
-        # image_data=image_data,
-        # alias=alias
+        bio=data.get('bio'),
+        image_data=image_data,
+        alias=alias
     )
     
     db.session.add(new_user)
@@ -131,6 +131,8 @@ def profile():
         "role": user.role,
         "name": user.name,
         "bio": user.bio,
+        "alias": user.alias,
+        "image_data": base64.b64encode(user.image_data).decode('utf-8') if user.image_data else None,
         "map_ids": user.map_ids
     })
 
