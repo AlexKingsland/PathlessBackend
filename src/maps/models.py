@@ -40,6 +40,7 @@ class Map(db.Model):
     price = db.Column(db.Float, nullable=True, default=0.0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     countries = db.Column(ARRAY(db.String(255)), nullable=True, default=[])
+    cities = db.Column(ARRAY(db.String(255)), nullable=True, default=[])
     
     creator = db.relationship('User', backref='maps', lazy=True)
     rating = db.relationship('Rating', backref='map', lazy=True)
@@ -75,6 +76,7 @@ class Map(db.Model):
             "price": self.price,
             'tags': self.tags,
             'countries': self.countries,
+            'cities': self.cities,
             "waypoints": [waypoint.serialize() for waypoint in self.waypoints],
             'image_data': base64.b64encode(self.image_data).decode('utf-8') if self.image_data else None,
             "creator": self.creator.serialize() if self.creator else None
@@ -96,6 +98,7 @@ class Waypoint(db.Model):
     duration = db.Column(db.Interval, nullable=True)
     image_data = db.Column(db.LargeBinary, nullable=True)  # Store image as binary data
     country = db.Column(db.String(255), nullable=True)
+    city = db.Column(db.String(255), nullable=True)
 
     def serialize(self):
         return {
@@ -109,7 +112,8 @@ class Waypoint(db.Model):
             'price': self.price,
             'duration': format_duration(self.duration),
             'image_data': base64.b64encode(self.image_data).decode('utf-8') if self.image_data else None,
-            'country': self.country
+            'country': self.country,
+            'city': self.city,
         }
     
 

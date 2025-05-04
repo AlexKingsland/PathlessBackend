@@ -151,7 +151,8 @@ def update_map_with_waypoints(map_id):
                         price=wp.get('price', 0.0),
                         duration=wp.get('duration', None),
                         image_data=image_data,
-                        country=wp.get('country', None)
+                        country=wp.get('country', None),
+                        city=wp.get('city', None)
                     )
                     db.session.add(new_wp)
 
@@ -287,6 +288,7 @@ def get_filtered_maps_with_waypoints():
         duration_param = request.args.get('duration')   # Expected format: "1, 10"
         rating_param = request.args.get('rating')       # Expected format: "1, 5"
         country_param = request.args.get('countries')     # Expected format: "USA", "Canada" or "" for no country
+        city_param = request.args.get('cities')         # Expected format: "New York", "Toronto" or "" for no city
         tags_param = request.args.get('tags')           # Expected format: "tag1, tag2" or "" for no tags
 
         query = Map.query
@@ -332,6 +334,11 @@ def get_filtered_maps_with_waypoints():
         if country_param:
             countries_list = [country.strip() for country in country_param.split(',')]
             query = query.filter(Map.countries.overlap(countries_list))
+
+        # Filter by city if provided
+        if city_param:
+            cities_list = [city.strip() for city in city_param.split(',')]
+            query = query.filter(Map.cities.overlap(cities_list))
 
 
         # Filter by tags if provided
